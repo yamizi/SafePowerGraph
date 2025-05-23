@@ -19,6 +19,7 @@ import pickle
 
 import random
 import numpy as np
+from huggingface_hub import hf_hub_download
 
 
 def init_dataset(training_cases, validation_case, all_params, experiment, filter_dataset=True):
@@ -246,15 +247,38 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              max_epochs=500, y_nodes=["gen", "ext_grid", "bus"], train_batch_size=5, val_batch_size=5,
              device="cuda", filter_dataset=True, opf=2, use_ray=True, uniqueid="", hidden_channels=[64, 64],
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
-             clamp_boundary=0, use_physical_loss=1, weighting="relative", seed=1, return_model_if_exists=False,
-             initial_epoch=0, hetero=True, model_file=None, model_output_file=None, num_workers_train=0):
+             clamp_boundary=0, use_physical_loss=1, weighting="relative", seed=20, return_model_if_exists=False,
+             initial_epoch=0, hetero=True, model_file=None, model_output_file=None, num_workers_train=0,
+             token=""):
 
     device = init_device(device, seed)
     if not uniqueid:
         uniqueid = uuid.uuid4()
 
     os.makedirs(save_path, exist_ok=True)
+    case = training_cases[0][0]              # e.g., "case9"
+    mutation_type = training_cases[0][3][0]  # e.g., "cost"
+    filename = f"OPF_{case}_{mutation_type}_{seed}.pkl"
     pickle_file = f"{save_path}/{uniqueid}_{seed}_{hetero}.pkl"
+    if not os.path.exists(pickle_file):
+        try:
+            token = os.environ.get("HUGGINFACE_TOKEN",token)
+            downloaded_path = hf_hub_download(
+                repo_id="LISTTT/NeurIPS_2025_BMDB",
+                filename=filename,
+                repo_type="dataset",
+                cache_dir=save_path,  
+                token=token   
+            )
+            
+            os.rename(downloaded_path, pickle_file)
+            print(f"Downloaded from HuggingFace and saved to: {pickle_file}")
+        
+        except Exception as e:
+            print(f"Download failed from Hugging Face: {e}")
+    else:
+        print(f"Found existing pickle file: {pickle_file}")
+    
     pin_memory = device == "cpu" or num_workers_train != 0
     num_workers_train = int(num_workers_train)
 

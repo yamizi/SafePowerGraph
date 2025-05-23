@@ -30,6 +30,12 @@ if __name__ == "__main__":
     weighting = "uniform"
     num_workers_train = 2
     base_lr = 0.01
+    filename="OPF_PF/OPF-PF_case30_load_relative_20.pkl"
+    #OPF_case9_load_relative_20.pkl
+    ### Add your own Huggingface token
+    token=""
+    ### 20/25/200
+    seed=20
 
     experiment = init_comet({"case": case, "mutation": mutation})
     hash_path = f"{training_case}_{validation_case}"
@@ -41,7 +47,8 @@ if __name__ == "__main__":
              max_epochs=max_epochs, experiment=experiment, dataset_type="y_OPF",
              scale=False, filter=True, opf=opf, use_ray=False, uniqueid=hash_path,
              cv_ratio=cv_ratio, clamp_boundary=clamp_boundary, use_physical_loss=use_physical_loss,
-             weighting=weighting, num_workers_train=num_workers_train, base_lr=base_lr)
+             weighting=weighting, num_workers_train=num_workers_train, base_lr=base_lr,seed=seed,
+             token="")
     plt.show()
     exit()
 

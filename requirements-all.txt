@@ -8,3 +8,4 @@ oct2py
 evotorch
 HolisticTraceAnalysis
 OpenDSSDirect.py[extras]
+huggingface_hub
