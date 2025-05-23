@@ -81,12 +81,5 @@ def get_parser():
     parser.add_argument('-uid', '--uniqueid', help="Unique id of pre-processed dataset", type=str,
                         default="")
 
-    parser.add_argument('-atk', '--attack', help="Adversarial attack to use and its parameters separated by ':'",
-                        type=str,
-                        default="PRBCDAttack:500")
-
-    parser.add_argument('-mdl', '--model_file', help="model to use for evaluation",
-                        type=str,
-                        default="")
 
     return parser

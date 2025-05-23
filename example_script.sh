@@ -2,6 +2,8 @@
 ulimit -n 8192
 export CUDA_VISIBLE_DEVICES=0
 export COMET_WORKSPACE="hgnn"
+export COMET_APIKEY=XXX
+export HUGGINFACE_TOKEN=XXX
 
 CASE="case9"
 SCALE=0
@@ -27,10 +29,13 @@ NB_WORKERS=0
 
 VAL_MUTATIONS="line_nminus1"
 
+### To Rebuild a dataset, it is recommended to use and parallelize with RAY
+
 DEVICE="cpu"
 RAY=1
-python experiments/build_db.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
+python experiments/build_db.py --cases $CASE --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --seed $SEED
 
+### To train the models disable RAY and use GPU
 RAY=0
 DEVICE="cuda"
 
