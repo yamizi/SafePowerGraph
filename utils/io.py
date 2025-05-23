@@ -76,9 +76,11 @@ def get_parser():
     parser.add_argument('-ag', '--aggr', help="Message passing aggregation", type=str, default="mean")
     parser.add_argument('-hc', '--hidden_channels', help="Hidden layers features separated by :", type=str,
                         default="64:64")
-    parser.add_argument('-we', '--weighting', help="Weighting strategy: uniform, relative, adatptive", type=str,
+    parser.add_argument('-we', '--weighting', help="Weighting strategy: uniform, relative, adaptive", type=str,
                         default="relative")
     parser.add_argument('-uid', '--uniqueid', help="Unique id of pre-processed dataset", type=str,
+                        default="")
+    parser.add_argument('-mdl', '--model_file', help="Unique id of pre-processed dataset", type=str,
                         default="")
 
 

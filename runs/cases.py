@@ -298,7 +298,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                   "pin_memory": pin_memory}
 
     all_param_hash = hashlib.md5(json.dumps(all_params).encode()).hexdigest()
-    model_file = f"{save_path}/model_{uniqueid}_{seed}_{all_param_hash}.pt" if model_file is None else model_file
+    model_file = f"{save_path}/model_{uniqueid}_{seed}_{all_param_hash}.pt" if (model_file is None or model_file=="") else model_file
     model_output_file = f"{save_path}/model_{uniqueid}_{seed}_{all_param_hash}.pt" if model_output_file is None else model_output_file
 
     if experiment is not None:
