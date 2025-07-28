@@ -76,7 +76,7 @@ class BaseOptions():
         ##
         self.parser.add_argument('--experiment_tracker', type=str, default='none',
                                  help='which experiment tracker to use (comet, WandB)')
-        self.parser.add_argument('--wandb_user', type=str, default='sghamizi-luxembourg-institute-of-health',
+        self.parser.add_argument('--wandb_user', type=str, default='',
                                  help='organization account for WandB')
 
         self.parser.add_argument('--experiment_project', type=str, default='PINN-GNN-OPF', help='project name for Experiment tracker')

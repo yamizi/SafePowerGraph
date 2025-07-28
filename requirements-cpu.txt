@@ -1,5 +1,0 @@
-pyg_lib -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-torch_scatter -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-torch_sparse -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-torch_cluster -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
-torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
