@@ -3,18 +3,19 @@ from argparse import Namespace
 from torch_geometric.data import HeteroData
 def hetero_to_homo(l):
     output_dim = l[0].y_dict["bus"].shape[1]
+    device =  l[0].y_dict["bus"].device
     homo_data = []
     for hetero_data in l:
         for node_type in hetero_data.node_types:
             N = hetero_data[node_type]['x'].size(0)  # Number of nodes of this type
             if 'y' not in hetero_data[node_type]:
-                hetero_data[node_type]['y'] = torch.zeros(N, output_dim)
+                hetero_data[node_type]['y'] = torch.zeros(N, output_dim).to(device)
             if 'boundaries' not in hetero_data[node_type]:
-                hetero_data[node_type]['boundaries'] = torch.zeros(N, 2)
+                hetero_data[node_type]['boundaries'] = torch.zeros(N, 2).to(device)
             if 'output_mask' not in hetero_data[node_type]:
-                hetero_data[node_type]['output_mask'] = torch.zeros(N, 6)
+                hetero_data[node_type]['output_mask'] = torch.zeros(N, 6).to(device)
 
-        homo_data.append(hetero_data.to_homogeneous(node_attrs=['x', 'y', 'boundaries', 'output_mask']))
+        homo_data.append(hetero_data.to(device).to_homogeneous(node_attrs=['x', 'y', 'boundaries', 'output_mask']))
             
     return homo_data
 
