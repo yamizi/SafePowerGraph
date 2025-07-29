@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 import torch
 import numpy as np
+
 from utils.models import GNN
 from utils.train.helpers import heterogeneous_loss_step, timeit
 
@@ -43,9 +44,9 @@ def evaluate(model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary
             ls = np.array([e for e in c_losses]) if len(c_losses) else np.array([0])
             cost_loss_val += ls.mean()
 
-            losses["boundary"] = np.array(b_losses)
-            losses["physical"] = np.array(p_losses)
-            losses["cost"] = np.array(c_losses)
+            losses["boundary"] = np.concatenate(b_losses)
+            losses["physical"] = np.concatenate(p_losses) if len(p_losses) else np.array([])
+            losses["cost"] = np.concatenate(c_losses) if len(c_losses) else np.array([])
             losses["weighted"] = np.array(loss)
 
             val_losses_all.append(losses)

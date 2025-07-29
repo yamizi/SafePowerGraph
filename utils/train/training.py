@@ -176,7 +176,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
             val_loss, boundary_loss_val, physical_loss_val, cost_loss_val, val_loss_gen, val_loss_ext_grid, val_loss_bus, val_loss_line, out_all, labels_all, val_losses_all = evaluate(
                 model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary, use_physical_loss, epoch,
-                log_every, neighboorhood=neighboorhood)
+                log_every, neighboorhood=neighboorhood, node_types=node_types)
 
             val_losses.append(val_loss)
             boundary_val_losses.append(boundary_loss_val)
