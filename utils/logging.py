@@ -16,6 +16,8 @@ import os
 class NumpyEncoder(json.JSONEncoder):
     import numpy as np
     def default(self, obj):
+        if isinstance(obj, torch.Tensor):
+            return obj.cpu().numpy().tolist()
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)

@@ -249,16 +249,25 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
         base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
         use_physical_loss=use_physical_loss, weighting=weighting, hetero=hetero, node_types=node_types, edge_index_dict=edge_index_dict)
 
+    print("Training Complete. Logging performances")
+    relativeSE = log_opf(valid_networks, val_graphs, last_out, y_nodes, None, hetero=hetero)
+    if logging and experiment is not None:
+        log_dict_series(relativeSE, experiment, 1000)
+        
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
                                                         use_ray=use_ray, hetero=hetero)
 
     if logging:
-        print("Logging results")
+
 
         log_dict = {"constraint_boundary": constrained_networks[:, 1].tolist(),
                     "constraint_opf": constrained_networks[:, 0].tolist(),
                     "constraint": constrained_networks.prod(1).tolist()}
+        if experiment is not None:
+            log_dict_series(log_dict, experiment, 1000)
+
+
         epoch_dict = {"train_losses": train_losses, "val_losses": val_losses,
                       "b_train_losses": b_train_losses,
                       "b_train_losses": b_train_losses, "b_val_losses": b_val_losses, "learning_rate": lr,
@@ -267,13 +276,13 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
 
         losses_file = f"{save_path}/{uniqueid}_losses.json"
         with open(losses_file, "w") as outfile:
-            json.dump(epoch_dict, outfile)
+            json.dump(epoch_dict, outfile, cls=NumpyEncoder)
 
         constraints_file = f"{save_path}/{uniqueid}_constraints.json"
         with open(constraints_file, "w") as outfile:
-            json.dump(log_dict, outfile)
+            json.dump(log_dict, outfile, cls=NumpyEncoder)
 
-        relativeSE = log_opf(valid_networks, val_graphs, last_out, y_nodes, None, hetero=hetero)
+
         errors_file = f"{save_path}/{uniqueid}_errors.json"
         with open(errors_file, "w") as outfile:
             json.dump(relativeSE, outfile, cls=NumpyEncoder)
@@ -284,8 +293,6 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
             experiment.log_asset(constraints_file)
             experiment.log_asset(errors_file)
 
-            log_dict_series(log_dict, experiment, 1000)
-            log_dict_series(relativeSE, experiment, 1000)
 
 
     return model, last_out
@@ -316,8 +323,10 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                 repo_id="LISTTT/NeurIPS_2025_BMDB",
                 filename=filename,
                 repo_type="dataset",
-                cache_dir=save_path,  
-                token=token   
+                cache_dir=os.path.join(save_path,"cache"),
+                local_dir=save_path,
+                token=token,
+                local_dir_use_symlinks=False
             )
             
             os.rename(downloaded_path, pickle_file)

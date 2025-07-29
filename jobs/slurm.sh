@@ -5,11 +5,10 @@
 #SBATCH --time=18:00:00
 #SBATCH --mail-user=sghamizi@uni-koeln.de
 #SBATCH --mail-type=END
-#SBATCH --output=/scratch/sghamizi/logs/logfile-array-%j.out
+#SBATCH --output=/scratch/sghamizi/logs/logfile-slurm-%j.out
 #SBATCH --error=/scratch/sghamizi/logs/error-array-%j.out
 #SBATCH --mem=100gb
 #SBATCH --partition=smp
-#SBATCH --array=0-2
 
 # srun --pty --mem 150gb -c 8 -p interactive -t 20:30:00 -N 1 -G a30:1 -n 1   /bin/bash
 
@@ -22,6 +21,9 @@ export MKL_NUM_THREADS=4
 EPSILON=0
 RANDOMRESTART=0
 
-sh jobs/grad_loop_fast.sh 0 0 "bus_vm#${SLURM_ARRAY_TASK_ID}" "attack_modelsV5_subset"
-#sh jobs/grad_loop_fast.sh 0 0 "bus_vm#0" "attack_modelsV5_subset"
+sh jobs/case30.sh gat line_nminus1
+sh jobs/case30.sh gcn load_relative
+sh jobs/case30.sh sage cost
+sh jobs/case30.sh gps
+
 

@@ -29,12 +29,14 @@ DEVICE="cpu"
 RAY=1
 
 
-VAL_MUTATIONS="line_nminus1"
+VAL_MUTATIONS="load_relative"
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 1 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
+exit
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 2 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 3 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
 
-VAL_MUTATIONS="load_relative"
+
+VAL_MUTATIONS="line_nminus1"
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 1 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 2 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
 python experiments/test_performances.py --cases $CASE --cls $CLS --hidden_channels $HC --epochs $EPOCHS --ray $RAY --cv_ratio $CV --num_samples $HP --mutations $MUTATIONS  --validation_mutations $VAL_MUTATIONS --scale $SCALE --device $DEVICE --dataset_type $DATASET --comet_name $PROJECT --opf $OPF --nb_train $NB_TRAIN --nb_val $NB_VAL --clamp_boundary 3 --use_physical_loss "0_2" --weighting "random" --seed $SEED  --batch_train $BATCH_TRAIN --num_workers_train $NB_WORKERS
