@@ -12,6 +12,7 @@ from torch_geometric.nn import to_hetero
 
 from torch_geometric.loader import DataLoader
 from utils.models import GNN
+from utils.custom_models import GPS
 import torch
 from utils.train import train_opf, train_cv
 import json, os
@@ -20,6 +21,38 @@ import pickle
 import random
 import numpy as np
 from huggingface_hub import hf_hub_download
+
+from torch_geometric.data import Data, HeteroData
+import torch_geometric.transforms as T
+
+from utils import hetero_to_homo
+
+def add_random_walk_pe_to_hetero(
+    hetero_data: Data,
+    walk_length: int = 4,
+    attr_name: str = 'pe',
+    hetero:bool = True
+):
+    rw_pe_transform = T.AddRandomWalkPE(walk_length=walk_length, attr_name=attr_name)
+    if not hetero:
+        return rw_pe_transform(hetero_data)
+    for node_type in hetero_data.node_types:
+        # Collect all edges where the target is this node type, possibly from multiple edge types
+        combined_edges = []
+        for edge_type in hetero_data.edge_types:
+            if edge_type[2] == node_type:
+                edges = hetero_data[edge_type].edge_index
+                combined_edges.append(edges)
+        if len(combined_edges) == 0:
+            continue  # No incoming edges for this node type
+        # Concatenate all incoming edges
+        edge_index = torch.cat(combined_edges, dim=1)
+        num_nodes = hetero_data[node_type].num_nodes
+        sub_data = Data(x=torch.zeros((num_nodes, 1)), edge_index=edge_index)
+        sub_data = rw_pe_transform(sub_data)
+        hetero_data[node_type][attr_name] = sub_data[attr_name]
+    return hetero_data
+
 
 
 def init_dataset(training_cases, validation_case, all_params, experiment, filter_dataset=True):
@@ -135,7 +168,10 @@ def init_model(graph_y, all_params, aggr, hidden_channels, cls, model_file):
 
     data = graph_y[0]
 
-    model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
+    if cls=="gps":
+        model = GPS(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
+    else:
+        model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
 
     if hetero:
         model = to_hetero(model, data.metadata(), aggr='sum').to(device)
@@ -175,7 +211,7 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
     clamp_boundary = all_params.get("clamp_boundary")
     use_physical_loss = all_params.get("use_physical_loss")
     device = all_params.get("device")
-    hetero = all_params.get("hetero")
+    hetero = all_params.get("hetero", )
     num_workers_train = all_params.get("num_workers_train")
     y_nodes = all_params.get("y_nodes")
     weighting = all_params.get("weighting")
@@ -183,13 +219,21 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
     save_path = all_params.get("save_path")
     uniqueid = all_params.get("uniqueid")
     opf = all_params.get("opf")
-
+    walk_length = all_params.get("walk_length",4)
     decay_lr = training_params.get("decay_lr")
     base_lr = training_params.get("base_lr")
+    cls = training_params.get("cls")
 
     train_list = [g.set_device(device, num_workers_train)[0] for g in train_graphs]
     validation_list = [g.set_device(device, num_workers_train)[0] for g in val_graphs]
+    node_types = validation_list[0].node_types
+    if not hetero:
+        train_list = hetero_to_homo(train_list)
+        validation_list = hetero_to_homo(validation_list)
 
+    if cls=="gps":
+        train_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in train_list]
+        validation_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in validation_list]
 
     train_loader = DataLoader(train_list, batch_size=train_batch_size, num_workers=num_workers_train,
                               pin_memory=pin_memory)
@@ -198,7 +242,7 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, p_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
         base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
-        use_physical_loss=use_physical_loss, weighting=weighting, hetero=hetero)
+        use_physical_loss=use_physical_loss, weighting=weighting, hetero=hetero, node_types=node_types)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -249,7 +293,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
              base_lr=0.1, decay_lr=0.5, cv_ratio=0, cls="sage", aggr="mean", num_samples=100, build_db_only=False,
              clamp_boundary=0, use_physical_loss=1, weighting="relative", seed=20, return_model_if_exists=False,
              initial_epoch=0, hetero=True, model_file=None, model_output_file=None, num_workers_train=0,
-             token=""):
+             token="", args=None):
 
     device = init_device(device, seed)
     if not uniqueid:
@@ -295,7 +339,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                   "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr,
                   "weighting": weighting, "losses": "mse+l1", "seed": seed,
                   "initial_epoch": initial_epoch, "num_workers_train": num_workers_train,
-                  "pin_memory": pin_memory}
+                  "pin_memory": pin_memory, "hetero":args.hetero}
 
     all_param_hash = hashlib.md5(json.dumps(all_params).encode()).hexdigest()
     model_file = f"{save_path}/model_{uniqueid}_{seed}_{all_param_hash}.pt" if (model_file is None or model_file=="") else model_file

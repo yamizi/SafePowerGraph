@@ -32,8 +32,8 @@ class GNN(torch.nn.Module):
             OrderedDict([(f"conv{i}", CLS(out_channels=hidden_channels[i], aggr=aggr, **cls_params)) for i in
                          range(nb_hidden_layers)]))
         # print(self.convs)
-        self.linear = Linear(hidden_channels[-1], hidden_channels[-1])
-        self.linear2 = Linear(hidden_channels[-1], out_channels)
+        self.linear = Linear(int(hidden_channels[-1]), int(hidden_channels[-1]))
+        self.linear2 = Linear(int(hidden_channels[-1]), out_channels)
 
     def forward(self, x, edge_index, edge_weight=None):
         x = self.first_conv(x, edge_index)
@@ -45,7 +45,6 @@ class GNN(torch.nn.Module):
         x = self.linear(x)
         x = self.linear2(x)
         return x
-        return torch.tanh(x)
 
 
 class FCNN(torch.nn.Module):
