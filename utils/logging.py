@@ -86,21 +86,21 @@ def build_log_opf(dic, label, node, outputs, output_index, ground_truth, gt_inde
 
 def log_opf(networks, val_graphs, outputs, y_nodes, experiment, hetero=True):
     (out_all, val_losses_all) = outputs
-    if hetero:
-        output_nodes = {node: torch.cat([e[node] for e in out_all], 0) for node in y_nodes}
-        labels = {node: torch.cat([e.data[node].y for e in val_graphs]) for node in y_nodes}
-    else:
-        return {}
-        ###TODO: rebuild all y nodes from bus vector
-        bus_nodes = torch.cat([e for e in out_all], 0)
-        y_nodes = ["ext_grid", "gen", "sgen"]
-        nb_gens = {node: len(networks.get("original")[node]) for node in y_nodes}
-        mask = list(chain.from_iterable([[e] * k for (e, k) in nb_gens.items()])) * len(networks.get("mutants"))
-        output_nodes = {node: bus_nodes[np.array(mask) == node, :] for node in y_nodes}
-
-        mask_nan = ~torch.isnan(val_graphs[0].data.y)#.any(1)
-        ground_truth = torch.cat([e.data.y[mask_nan] for e in val_graphs])
-        labels = {node: ground_truth[np.array(mask) == node, :] for node in y_nodes}
+    # if hetero:
+    output_nodes = {node: torch.cat([e[node] for e in out_all], 0) for node in y_nodes}
+    labels = {node: torch.cat([e.data[node].y for e in val_graphs]) for node in y_nodes}
+    # else:
+    #     return {}
+    #     ###TODO: rebuild all y nodes from bus vector
+    #     bus_nodes = torch.cat([e for e in out_all], 0)
+    #     y_nodes = ["ext_grid", "gen", "sgen"]
+    #     nb_gens = {node: len(networks.get("original")[node]) for node in y_nodes}
+    #     mask = list(chain.from_iterable([[e] * k for (e, k) in nb_gens.items()])) * len(networks.get("mutants"))
+    #     output_nodes = {node: bus_nodes[np.array(mask) == node, :] for node in y_nodes}
+    #
+    #     mask_nan = ~torch.isnan(val_graphs[0].data.y)#.any(1)
+    #     ground_truth = torch.cat([e.data.y[mask_nan] for e in val_graphs])
+    #     labels = {node: ground_truth[np.array(mask) == node, :] for node in y_nodes}
 
     delta = 1e-10  # to avoid division by zero
     dic = {}

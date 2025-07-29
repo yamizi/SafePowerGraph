@@ -154,18 +154,9 @@ def is_network_valid(i, network, y_nodes, output_nodes, nb_gens, opf, tolerance=
 
 def validate_opf(networks, val_graphs, outputs, y_nodes, hetero=True, opf=1, use_ray=1):
     (out_all, val_losses_all) = outputs
-    if hetero:
-        output_nodes = {node: torch.cat([e[node] for e in out_all], 0) for node in y_nodes}
-        nb_gens = {node: len(networks.get("mutants")[0][node]) for node in y_nodes}
-    else:
 
-        ###TODO: rebuild all y nodes from bus vector
-        bus_nodes = torch.cat([e for e in out_all], 0)
-        y_nodes = ["bus"]
-        nb_gens = {node: len(networks.get("original")[node]) for node in y_nodes}
-        #mask = list(chain.from_iterable([[e] * k for (e, k) in nb_gens.items()])) * len(networks.get("mutants"))
-        #output_nodes = {node: bus_nodes[np.array(mask) == node, :] for node in y_nodes}
-        output_nodes = {"bus":bus_nodes}
+    output_nodes = {node: torch.cat([e[node] for e in out_all], 0) for node in y_nodes}
+    nb_gens = {node: len(networks.get("mutants")[0][node]) for node in y_nodes}
 
     if use_ray:
         validation = [is_network_valid_ray.remote(i, network, y_nodes, output_nodes, nb_gens, opf) for i, network in
