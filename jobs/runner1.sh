@@ -1,0 +1,8 @@
+sh jobs/case9.sh "gat" "load_relative" & sh jobs/case9.sh "gat" "line_nminus1" & sh jobs/case9.sh "gat" "cost"
+sh jobs/case9.sh "sage" "load_relative" & sh jobs/case9.sh "sage" "line_nminus1" & sh jobs/case9.sh "sage" "cost"
+sh jobs/case9.sh "gcn" "load_relative" & sh jobs/case9.sh "gcn" "line_nminus1" & sh jobs/case9.sh "gcn" "cost"
+sh jobs/case9.sh "gps" "load_relative" & sh jobs/case9.sh "gps" "line_nminus1" & sh jobs/case9.sh "gps" "cost"
+sh jobs/case30.sh "gat" "load_relative" & sh jobs/case30.sh "gat" "line_nminus1" & sh jobs/case30.sh "gat" "cost"
+sh jobs/case30.sh "sage" "load_relative" & sh jobs/case30.sh "sage" "line_nminus1" & sh jobs/case30.sh "sage" "cost"
+sh jobs/case30.sh "gcn" "load_relative" & sh jobs/case30.sh "gcn" "line_nminus1" & sh jobs/case30.sh "gcn" "cost"
+sh jobs/case30.sh "gps" "load_relative" & sh jobs/case30.sh "gps" "line_nminus1" & sh jobs/case30.sh "gps" "cost"

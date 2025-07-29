@@ -5,7 +5,7 @@ export COMET_WORKSPACE="hgnn"
 
 CASE="case30"
 SCALE=0
-PROJECT="perf_opf_weightingRebuttal"
+PROJECT="perf_opf_weightingRebuttalV2"
 DATASET="y_OPF"
 MUTATIONS="load_relative"
 BATCH_TRAIN=512
@@ -19,7 +19,7 @@ DLR=0.5
 AGG="mean"
 HC="128:128"
 EPOCHS=1000
-OPF=0
+OPF=1
 RAY=1
 SEED=${3:-20}
 NB_WORKERS=0

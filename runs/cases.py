@@ -274,14 +274,18 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
                       "val_losses_gen": val_losses_gen, "val_losses_ext_grid": val_losses_ext_grid,
                       "val_losses_bus": val_losses_bus, "val_losses_line": val_losses_line}
 
-        losses_file = f"{save_path}/{uniqueid}_losses.json"
-        with open(losses_file, "w") as outfile:
-            json.dump(epoch_dict, outfile, cls=NumpyEncoder)
-
-        constraints_file = f"{save_path}/{uniqueid}_constraints.json"
-        with open(constraints_file, "w") as outfile:
-            json.dump(log_dict, outfile, cls=NumpyEncoder)
-
+        try:
+            losses_file = f"{save_path}/{uniqueid}_losses.json"
+            with open(losses_file, "w") as outfile:
+                json.dump(epoch_dict, outfile, cls=NumpyEncoder)
+        except Exception as e:
+            print("error when saving losses")
+        try:
+            constraints_file = f"{save_path}/{uniqueid}_constraints.json"
+            with open(constraints_file, "w") as outfile:
+                json.dump(log_dict, outfile, cls=NumpyEncoder)
+        except Exception as e:
+            print("error when saving constraints")
 
         errors_file = f"{save_path}/{uniqueid}_errors.json"
         with open(errors_file, "w") as outfile:

@@ -4,7 +4,7 @@ export COMET_WORKSPACE="hgnn"
 
 CASE="case118"
 SCALE=0
-PROJECT="perf_opf_weightingRebuttal"
+PROJECT="perf_opf_weightingRebuttalV2"
 DATASET="y_OPF"
 MUTATIONS="load_relative"
 #VAL_MUTATIONS="load_relative+line_nminus1+cost"

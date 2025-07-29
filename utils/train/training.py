@@ -1,5 +1,5 @@
 import time
-
+import tqdm
 
 import torch.nn.functional as F
 import torch
@@ -101,7 +101,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
                 experiment.log_metrics(logged_metrics, epoch=0)
     else:
-        for epoch in range(0, max_epochs):
+        for epoch in tqdm.tqdm(range(max_epochs), desc="Epochs"):
             lr = lr_scheduler.get_last_lr()[0]
             learning_rate.append(lr)
             ssl_weight = 0
@@ -115,7 +115,6 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
             train_loss_ext_grid = 0
             train_loss_bus = 0
             train_loss_line = 0
-            print("epoch ",epoch)
 
             for batch_id, batch in enumerate(train_loader):
                 if prof is not None and epoch < nb_epoch_profiling:
