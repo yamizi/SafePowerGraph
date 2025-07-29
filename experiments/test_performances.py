@@ -1,5 +1,5 @@
 import sys
-
+import os
 sys.path.append(".")
 from utils.io import get_parser
 import hashlib
@@ -30,7 +30,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
     training_cases = [[case, nb_train, 0.7, mutation.split("#")] for case in cases for mutation in mutations]
     validation_case = [validation_cases, nb_val, 0.7, validation_mutations.split("#")]
 
-    path = "./output/test_perf/" + project_name
+    path = os.path.join(args.project_path , project_name)
 
     if uniqueid == "":
         hash_path = f"{'+'.join(cases)}/{validation_cases}/{nb_train}/{'+'.join(mutations)}/{validation_mutations}/{nb_val}"

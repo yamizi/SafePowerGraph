@@ -77,7 +77,7 @@ def init_dataset(training_cases, validation_case, all_params, experiment, filter
         val_case_name, nb_graphs, mutation_rate, mutations = validation_case
 
     else:
-
+        print("Could not find file", pickle_file, "building")
         common_params = {"dataset_type": dataset_type, "save_dataframes": save_path, "experiment": experiment,
                          "scale": scale, "device": device, "opf": opf, "use_ray": use_ray, "y_nodes": y_nodes,
                          "hetero": hetero}
@@ -236,7 +236,7 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
         train_list = hetero_to_homo(train_list)
         validation_list = hetero_to_homo(validation_list)
 
-    elif cls=="gps":
+    if cls=="gps":
         train_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in train_list]
         validation_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in validation_list]
 
