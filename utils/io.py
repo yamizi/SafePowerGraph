@@ -49,6 +49,7 @@ def get_parser():
     parser.add_argument('-t', '--nb_train', help="Number of graphs used in training", type=int, default=nb_train)
     parser.add_argument('-v', '--nb_val', help="Number of graphs used in validation", type=int, default=nb_val)
     parser.add_argument('-s', '--scale', help="Scaling features", type=int, default=0)
+    parser.add_argument('-wl', '--walk_length', help="Walk length for positional encoding", type=int, default=4)
 
     parser.add_argument('-dt', '--dataset_type', help="Which features to log", type=str, default="y_OPF")
     parser.add_argument('-n', '--comet_name', help="Name of the comet project", type=str, default="")

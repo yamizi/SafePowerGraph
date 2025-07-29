@@ -1,4 +1,5 @@
 import time
+from argparse import Namespace
 
 import torch.nn.functional as F
 import torch
@@ -127,7 +128,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                     use_physical_loss=use_physical_loss,
                     neighboorhood=neighboorhood,
                     epoch=epoch, batch_id=batch_id,
-                    weighting=weighting, max_epochs=max_epochs)
+                    weighting=weighting, max_epochs=max_epochs,
+                node_types=node_types)
                 train_loss += torch.cat(losses, 0).mean().cpu().item()
 
                 train_loss_gen += losses[0].mean().cpu().item()
@@ -221,9 +223,10 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
         out_all, val_losses_all), boundary_train_losses, physical_train_losses, boundary_val_losses, learning_rate
 
 
-def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
+def train_step(model, optimizer, batch, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
                use_boundary_loss=True, clamp_boundary=True, use_physical_loss="2", neighboorhood=None
-               , epoch=0, batch_id=0, weighting="relative", max_epochs=100):
+               , epoch=0, batch_id=0, weighting="relative", max_epochs=100, node_types=[]):
+    data = batch.clone()
     model.train()
     optimizer.zero_grad()
     if loss_f is None:
@@ -250,79 +253,88 @@ def train_step(model, optimizer, data, mask_node="paper", feature_node="paper", 
     ssl_max_value = float(use_physical_loss[3]) if len(use_physical_loss) > 3 else 1
     ssl_power = int(use_physical_loss[4]) if len(use_physical_loss) > 4 else 2
 
-    if hetero:
-        out = model(data.x_dict, data.edge_index_dict)
-        # out = denormalize_outputs(out,data.sn_mva[0])
 
-        total_nodes = {node: len(data[node].y) for node in feature_node}
-
-        for i, node in enumerate(feature_node):
-            label = data[node].y
-            output = out[node]
-            if mask_node is not None:
-                mask = data[mask_node[i]].train_mask
-                label = label[mask_node[i]]
-                output = output[mask_node[i]]
-
-            output_mask = data[node].output_mask
-
-            loss_label = loss_f(label, output, output_mask)
-
-            if clamp_boundary:
-                output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
-
-            return_output[node] = output
-            return_label[node] = label
-
-            if use_boundary_loss:
-                loss_boundary = boundary_loss(data[node].boundaries, output, node=node)
-                loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
-                boundary_losses.append(loss_boundary)
-            else:
-                loss_node = loss_label
-
-            weight_node = np.sum(list(total_nodes.values())) / total_nodes.get(node) if "relative" in weighting else 1
-            loss += weight_node * loss_node.mean()
-            losses.append(weight_node * loss_node)
-
-            if use_physical_loss[0] != "0" and node == "bus":
-
-                use_physical_loss_version = use_physical_loss[1] if len(use_physical_loss) == 2 else "2"
-                physical_loss, neighboorhood, duration, _ = power_imbalance_loss(data, out, neighboorhood,
-                                                                              ground_truth=False,
-                                                                              version=use_physical_loss_version)
-
-                cost_loss = power_cost_loss(data, out, neighboorhood, ground_truth=False)
-                physical_losses_duration.append(duration)
-                cost_losses.append(weight_node * cost_loss.mean())
-
-                if int(use_physical_loss[0]) == 2:
-                    loss += weight_node * physical_loss.mean()
-                    physical_losses.append(weight_node * physical_loss.mean())
-                elif int(use_physical_loss[0]) == 3:
-                    loss = weight_node * physical_loss.mean()
-                    physical_losses.append(weight_node * physical_loss.mean())
-
-                if int(use_physical_loss[0]) == 21:
-                    loss += weight_node * (physical_loss.mean() + cost_loss.mean())
-                    physical_losses.append(weight_node * physical_loss.mean())
-
-                elif int(use_physical_loss[0]) == 31:
-                    loss = weight_node * (physical_loss.mean() + cost_loss.mean())
-                    physical_losses.append(weight_node * physical_loss.mean())
-                else:
-                    physical_losses.append(physical_loss)
-
+    if not hetero:
+        out_homo = model(data)
+        hetero_dict = {}
+        out = {}
+        for node_type_id, node_type_name in enumerate(node_types):
+            mask = (data.node_type == node_type_id)
+            hetero_dict[node_type_name] = Namespace(x=data.x[mask],y=data.y[mask],boundaries=data.boundaries[mask])
+            out[node_type_name] = out_homo[mask]
+        data = hetero_dict
     else:
-        mask = ~torch.isnan(data.y)
-        label = data.y
-        if isinstance(model, GNN):
-            out = model(data.x, data.edge_index)
-            # out = denormalize_outputs(out, data.sn_mva[0],data.angle[0], "gnn")
+        out = model(data.x_dict, data.edge_index_dict)
+
+    total_nodes = {node: len(data[node].y) for node in feature_node}
+    # out = denormalize_outputs(out,data.sn_mva[0])
+    for i, node in enumerate(feature_node):
+        label = data[node].y
+        output = out[node]
+        if mask_node is not None:
+            mask = data[mask_node[i]].train_mask
+            label = label[mask_node[i]]
+            output = output[mask_node[i]]
+
+        output_mask = data[node].output_mask
+
+        loss_label = loss_f(label, output, output_mask)
+
+        if clamp_boundary:
+            output = clamp_boundaries(data[node].boundaries, output, node, output_mask)
+
+        return_output[node] = output
+        return_label[node] = label
+
+        if use_boundary_loss:
+            loss_boundary = boundary_loss(data[node].boundaries, output, node=node)
+            loss_node = torch.cat([loss_label.reshape((loss_boundary.shape[0], -1)), loss_boundary.unsqueeze(1)], 1)
+            boundary_losses.append(loss_boundary)
         else:
-            x = data.x.reshape(data.batch_size, -1)
-            label = label.reshape(data.batch_size, -1)
-            out = model(x)
+            loss_node = loss_label
+
+        weight_node = np.sum(list(total_nodes.values())) / total_nodes.get(node) if "relative" in weighting else 1
+        loss += weight_node * loss_node.mean()
+        losses.append(weight_node * loss_node)
+
+        if use_physical_loss[0] != "0" and node == "bus":
+
+            use_physical_loss_version = use_physical_loss[1] if len(use_physical_loss) == 2 else "2"
+            physical_loss, neighboorhood, duration, _ = power_imbalance_loss(data, out, neighboorhood,
+                                                                          ground_truth=False,
+                                                                          version=use_physical_loss_version)
+
+            cost_loss = power_cost_loss(data, out, neighboorhood, ground_truth=False)
+            physical_losses_duration.append(duration)
+            cost_losses.append(weight_node * cost_loss.mean())
+
+            if int(use_physical_loss[0]) == 2:
+                loss += weight_node * physical_loss.mean()
+                physical_losses.append(weight_node * physical_loss.mean())
+            elif int(use_physical_loss[0]) == 3:
+                loss = weight_node * physical_loss.mean()
+                physical_losses.append(weight_node * physical_loss.mean())
+
+            if int(use_physical_loss[0]) == 21:
+                loss += weight_node * (physical_loss.mean() + cost_loss.mean())
+                physical_losses.append(weight_node * physical_loss.mean())
+
+            elif int(use_physical_loss[0]) == 31:
+                loss = weight_node * (physical_loss.mean() + cost_loss.mean())
+                physical_losses.append(weight_node * physical_loss.mean())
+            else:
+                physical_losses.append(physical_loss)
+
+    # else:
+    #     mask = ~torch.isnan(data.y)
+    #     label = data.y
+    #     if isinstance(model, GNN):
+    #         out = model(data)
+    #         # out = denormalize_outputs(out, data.sn_mva[0],data.angle[0], "gnn")
+    #     else:
+    #         x = data.x.reshape(data.batch_size, -1)
+    #         label = label.reshape(data.batch_size, -1)
+    #         out = model(x)
             # out = denormalize_outputs(out, data.sn_mva[0],data.angle[0], "fcnn")
 
         return_output = out[mask]
