@@ -65,6 +65,7 @@ def get_parser():
                         type=str,
                         default="0_1")
 
+    parser.add_argument('-he', '--hetero', help="whether to use hetero gnn representation", type=int, default=1)
     parser.add_argument('-e', '--epochs', help="Max epochs", type=int, default=epochs)
     parser.add_argument('-hp', '--num_samples', help="Num samples in hyper-param optimization", type=int, default=250)
 

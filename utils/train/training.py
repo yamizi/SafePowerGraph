@@ -12,7 +12,7 @@ from utils.losses import boundary_loss, node_loss, power_imbalance_loss, power_c
 
 
 
-def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], log_every=10,
+def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], node_types=["bus","load","gen", "ext_grid"],log_every=10,
               device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0,
               use_physical_loss=1, weighting="relative"):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)

@@ -14,7 +14,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
         opf=1, project_name="test_perf_v4", use_ray=1, epochs=500, num_samples=200, aggr="mean", cls="sage",
         base_lr=0.1, decay_lr=0.5, hidden_channels=[64, 64], batch_train=256, clamp_boundary=0, use_physical_loss="1_1"
         , weighting="relative", uniqueid="", seed=1, validation_mutations=[], validation_cases=[], build_db_only=False,
-        num_workers_train=0, model_file=""):
+        num_workers_train=0, model_file="", args=None):
     # for mutation in mutations:
     #    for case in cases:
 
@@ -48,7 +48,7 @@ def run(mutations=["cost", "load_relative"], cases=["case9", "case14", "case30",
              num_samples=num_samples, aggr=aggr, cls=cls, base_lr=base_lr, decay_lr=decay_lr,
              hidden_channels=hidden_channels, clamp_boundary=clamp_boundary,build_db_only=build_db_only,
              use_physical_loss=use_physical_loss, weighting=weighting, seed=seed, num_workers_train=num_workers_train,
-             model_file=model_file)
+             model_file=model_file, args=args)
 
 
 if __name__ == "__main__":
@@ -65,4 +65,5 @@ if __name__ == "__main__":
         base_lr=args.base_lr, hidden_channels=hidden_channels, batch_train=args.batch_train,
         clamp_boundary=args.clamp_boundary, use_physical_loss=args.use_physical_loss, weighting=args.weighting,
         uniqueid=args.uniqueid, seed=args.seed, validation_cases=validation_cases,
-        validation_mutations=validation_mutations,num_workers_train=args.num_workers_train, model_file=args.model_file)
+        validation_mutations=validation_mutations,num_workers_train=args.num_workers_train, model_file=args.model_file,
+        args=args)
