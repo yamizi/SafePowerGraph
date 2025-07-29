@@ -4,8 +4,10 @@ import numpy as np
 from utils.models import GNN
 from utils.train.helpers import heterogeneous_loss_step, timeit
 
+from utils import homo_to_hetero
 
-def evaluate(model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary, use_physical_loss, epoch, log_every, neighboorhood=None):
+def evaluate(model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary, use_physical_loss, epoch, log_every,
+             neighboorhood=None, node_types=None):
     val_loss = 0
     boundary_loss_val = 0
     physical_loss_val = 0
@@ -30,7 +32,8 @@ def evaluate(model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary
                                                                                                         use_physical_loss=use_physical_loss,
                                                                                                         neighboorhood=neighboorhood,
                                                                                                         epoch=epoch,
-                                                                                                        batch_id=batch_id)
+                                                                                                        batch_id=batch_id,
+                                                                                                        node_types=node_types)
             val_loss += loss
             boundary_loss_val += np.concatenate(b_losses, 0).mean() if len(b_losses) else np.array([0])
 
@@ -72,7 +75,7 @@ def evaluate(model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary
 
 
 def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None, hetero=True, clamp_boundary=0,
-              use_physical_loss="2", neighboorhood=None, epoch=0, batch_id=0):
+              use_physical_loss="2", neighboorhood=None, epoch=0, batch_id=0, node_types=None):
     model.eval()
     if loss_f is None:
         loss_f = F.cross_entropy
@@ -91,38 +94,23 @@ def eval_step(model, data, mask_node="paper", feature_node="paper", loss_f=None,
     return_output = {}
     use_physical_loss = use_physical_loss.split("_")
 
-    if hetero:
-        # print("model", next(model.parameters()).device , "input",data.x_dict.get("bus").device)
-        out = model(data.x_dict, data.edge_index_dict)
-        # out = denormalize_outputs(out, data.sn_mva[0],data.angle[0])
-
-        timeit(model, data)
-        return_output, return_label, loss, losses, boundary_losses, physical_losses, cost_losses = heterogeneous_loss_step(
-            feature_node, data, out, loss, loss_f, clamp_boundary, return_output, return_label,
-            {}, boundary_losses, use_physical_loss, physical_losses, cost_losses, mask_node,
-            neighboorhood=neighboorhood)
-
-
+    if hasattr(model,"first_conv"):
+        out_ = model(data.x_dict if hetero else data.x, data.edge_index_dict if hetero else data.edge_index, None)
     else:
-        mask = ~torch.isnan(data.y)
-        label = data.y[mask]
-        if isinstance(model, GNN):
-            output = model(data.x, data.edge_index)
-            # timeit(model, data, hetero=False)
+        out_ = model(data)
 
-        else:
-            x = data.x.reshape(data.batch_size, -1)
-            original_shape = label.shape
-            label = label.reshape(data.batch_size, -1)
-            output = model(x)
-            out = output.reshape(original_shape)
-        return_output = output
-        return_label = data.y[mask]
-        loss_node = loss_f(label, output, mask)
-        # loss_boundary = boundary_loss(data[node].boundaries, output)
-        losses = {"node":(loss_node.cpu().detach().numpy())}
-        # boundary_losses.append(loss_boundary.cpu().detach().numpy())
-        loss += loss_node.mean()
+    if not hetero:
+        data, out = homo_to_hetero(data, out_, node_types)
+    else:
+        out = out_
+
+    
+    timeit(model, data)
+    return_output, return_label, loss, losses, boundary_losses, physical_losses, cost_losses = heterogeneous_loss_step(
+        feature_node, data, out, loss, loss_f, clamp_boundary, return_output, return_label,
+        {}, boundary_losses, use_physical_loss, physical_losses, cost_losses, mask_node,
+        neighboorhood=neighboorhood)
+
 
     return return_output, return_label, float(
         loss), losses, boundary_losses, physical_losses, cost_losses, neighboorhood

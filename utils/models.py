@@ -35,7 +35,8 @@ class GNN(torch.nn.Module):
         self.linear = Linear(int(hidden_channels[-1]), int(hidden_channels[-1]))
         self.linear2 = Linear(int(hidden_channels[-1]), out_channels)
 
-    def forward(self, x, edge_index, edge_weight=None):
+    def forward(self, x, edge_index=None, edge_weight=None):
+
         x = self.first_conv(x, edge_index)
         x = x.relu()
         for (k, v) in self.convs.items():

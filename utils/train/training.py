@@ -1,5 +1,5 @@
 import time
-from argparse import Namespace
+
 
 import torch.nn.functional as F
 import torch
@@ -9,13 +9,13 @@ from utils.train.helpers import clamp_boundaries
 from utils.train.evaluation import evaluate
 import os
 from utils.losses import boundary_loss, node_loss, power_imbalance_loss, power_cost_loss
-
+from utils import homo_to_hetero
 
 
 
 def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "ext_grid"], node_types=["bus","load","gen", "ext_grid"],log_every=10,
               device="cpu", decay_lr=0.3, hetero=True, base_lr=0.01, experiment=None, clamp_boundary=0,
-              use_physical_loss=1, weighting="relative"):
+              use_physical_loss=1, weighting="relative", edge_index_dict=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=base_lr)
     milestones = [max_epochs // 2, (max_epochs * 3) // 4, (max_epochs * 9) // 10]
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=decay_lr)
@@ -62,7 +62,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
         val_loss, boundary_loss_val, physical_loss_val, cost_loss_val, val_loss_gen, val_loss_ext_grid, val_loss_bus, val_loss_line, out_all, labels_all, val_losses_all = evaluate(
             model, val_loader, device, y_nodes, loss_fn, hetero, clamp_boundary, use_physical_loss, 0,
-            log_every)
+            log_every, node_types=node_types)
 
         val_losses.append(val_loss)
         boundary_val_losses.append(boundary_loss_val)
@@ -129,7 +129,8 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
                     neighboorhood=neighboorhood,
                     epoch=epoch, batch_id=batch_id,
                     weighting=weighting, max_epochs=max_epochs,
-                node_types=node_types)
+                    node_types=node_types,
+                    edge_index_dict=edge_index_dict)
                 train_loss += torch.cat(losses, 0).mean().cpu().item()
 
                 train_loss_gen += losses[0].mean().cpu().item()
@@ -225,7 +226,7 @@ def train_opf(model, train_loader, val_loader, max_epochs=200, y_nodes=["gen", "
 
 def train_step(model, optimizer, batch, mask_node="paper", feature_node="paper", loss_f=None, hetero=True,
                use_boundary_loss=True, clamp_boundary=True, use_physical_loss="2", neighboorhood=None
-               , epoch=0, batch_id=0, weighting="relative", max_epochs=100, node_types=[]):
+               , epoch=0, batch_id=0, weighting="relative", max_epochs=100, node_types=[], edge_index_dict=None):
     data = batch.clone()
     model.train()
     optimizer.zero_grad()
@@ -246,25 +247,20 @@ def train_step(model, optimizer, batch, mask_node="paper", feature_node="paper",
     physical_losses_duration = []
     return_label = {}
     return_output = {}
-
     use_physical_loss = use_physical_loss.split("_")
 
     ssl_start_epoch = int(use_physical_loss[2]) if len(use_physical_loss) > 2 else max_epochs // 4
     ssl_max_value = float(use_physical_loss[3]) if len(use_physical_loss) > 3 else 1
     ssl_power = int(use_physical_loss[4]) if len(use_physical_loss) > 4 else 2
-
+    if hasattr(model,"first_conv"):
+        out_ = model(data.x_dict if hetero else data.x, data.edge_index_dict if hetero else data.edge_index, None)
+    else:
+        out_ = model(data)
 
     if not hetero:
-        out_homo = model(data)
-        hetero_dict = {}
-        out = {}
-        for node_type_id, node_type_name in enumerate(node_types):
-            mask = (data.node_type == node_type_id)
-            hetero_dict[node_type_name] = Namespace(x=data.x[mask],y=data.y[mask],boundaries=data.boundaries[mask])
-            out[node_type_name] = out_homo[mask]
-        data = hetero_dict
+        data, out = homo_to_hetero(data, out_, node_types)
     else:
-        out = model(data.x_dict, data.edge_index_dict)
+        out = out_
 
     total_nodes = {node: len(data[node].y) for node in feature_node}
     # out = denormalize_outputs(out,data.sn_mva[0])
@@ -302,7 +298,8 @@ def train_step(model, optimizer, batch, mask_node="paper", feature_node="paper",
             use_physical_loss_version = use_physical_loss[1] if len(use_physical_loss) == 2 else "2"
             physical_loss, neighboorhood, duration, _ = power_imbalance_loss(data, out, neighboorhood,
                                                                           ground_truth=False,
-                                                                          version=use_physical_loss_version)
+                                                                          version=use_physical_loss_version,
+                                                                            edge_index_dict=edge_index_dict)
 
             cost_loss = power_cost_loss(data, out, neighboorhood, ground_truth=False)
             physical_losses_duration.append(duration)
@@ -336,14 +333,13 @@ def train_step(model, optimizer, batch, mask_node="paper", feature_node="paper",
     #         label = label.reshape(data.batch_size, -1)
     #         out = model(x)
             # out = denormalize_outputs(out, data.sn_mva[0],data.angle[0], "fcnn")
-
-        return_output = out[mask]
-        loss_label = loss_f(label[mask], out, mask)
-        # loss_boundary = boundary_loss(data[node].boundaries, output)
-        loss_node = loss_label  # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
-        losses.append(loss_label)
-        # boundary_losses.append(loss_boundary.cpu().detach().numpy())
-        loss += loss_node.mean()
+            # mask = ~torch.isnan(data.y)
+            # loss_label = loss_f(label[mask], out, mask)
+            # # loss_boundary = boundary_loss(data[node].boundaries, output)
+            # loss_node = loss_label  # torch.cat([loss_label,loss_boundary.unsqueeze(1)],1)
+            # losses.append(loss_label)
+            # # boundary_losses.append(loss_boundary.cpu().detach().numpy())
+            # loss += loss_node.mean()
 
     if "random" in weighting:
         ls = physical_losses + boundary_losses + losses

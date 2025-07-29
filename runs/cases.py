@@ -165,11 +165,15 @@ def run_hp(train_graphs, all_params, experiment ):
 def init_model(graph_y, all_params, aggr, hidden_channels, cls, model_file):
     device = all_params.get("device")
     hetero = all_params.get("hetero")
-
+    
     data = graph_y[0]
 
+    hidden_channels = [int(a) for a in hidden_channels]
     if cls=="gps":
-        model = GPS(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs)
+        in_channels = hetero_to_homo([data])[0].x.shape[1]
+        out_channels = graph_y.num_outputs
+        pe_channels = all_params.get("walk_length", 4)
+        model = GPS(in_channels=in_channels, hidden_channels=hidden_channels, out_channels=out_channels, pe_channels = pe_channels)
     else:
         model = GNN(hidden_channels=hidden_channels, out_channels=graph_y.num_outputs, aggr=aggr, cls=cls)
 
@@ -227,11 +231,12 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
     train_list = [g.set_device(device, num_workers_train)[0] for g in train_graphs]
     validation_list = [g.set_device(device, num_workers_train)[0] for g in val_graphs]
     node_types = validation_list[0].node_types
+    edge_index_dict = None
     if not hetero:
         train_list = hetero_to_homo(train_list)
         validation_list = hetero_to_homo(validation_list)
 
-    if cls=="gps":
+    elif cls=="gps":
         train_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in train_list]
         validation_list = [add_random_walk_pe_to_hetero(g, walk_length=walk_length, hetero=hetero) for g in validation_list]
 
@@ -242,7 +247,7 @@ def run_train_eval(model, train_graphs, train_networks, val_graphs, valid_networ
     train_losses, val_losses, val_losses_nodes, last_out, b_train_losses, p_train_losses, b_val_losses, lr = train_opf(
         model, train_loader, val_loader, max_epochs=max_epochs, y_nodes=y_nodes, device=device,
         base_lr=base_lr, decay_lr=decay_lr, experiment=experiment, clamp_boundary=clamp_boundary,
-        use_physical_loss=use_physical_loss, weighting=weighting, hetero=hetero, node_types=node_types)
+        use_physical_loss=use_physical_loss, weighting=weighting, hetero=hetero, node_types=node_types, edge_index_dict=edge_index_dict)
 
     val_losses_gen, val_losses_ext_grid, val_losses_bus, val_losses_line = val_losses_nodes
     constrained_networks, errors_network = validate_opf(valid_networks, val_graphs, last_out, y_nodes=y_nodes, opf=opf,
@@ -339,7 +344,7 @@ def run_case(training_cases=[["case9", 64, 0.7, ["cost", "load"]]], experiment=N
                   "base_lr": base_lr, "cv_ratio": cv_ratio, "cls": cls, "aggr": aggr,
                   "weighting": weighting, "losses": "mse+l1", "seed": seed,
                   "initial_epoch": initial_epoch, "num_workers_train": num_workers_train,
-                  "pin_memory": pin_memory, "hetero":args.hetero}
+                  "pin_memory": pin_memory, "hetero":args.hetero, "walk_length":args.walk_length}
 
     all_param_hash = hashlib.md5(json.dumps(all_params).encode()).hexdigest()
     model_file = f"{save_path}/model_{uniqueid}_{seed}_{all_param_hash}.pt" if (model_file is None or model_file=="") else model_file

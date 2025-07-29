@@ -38,21 +38,25 @@ def boundary_loss(boundaries, y, node=""):
     # return torch.max(torch.zeros_like(minp),minp-y[:,0]) + torch.max(torch.zeros_like(maxp),y[:,0]-maxp) + torch.max(torch.zeros_like(minq),minq-y[:,1]) + torch.max(torch.zeros_like(maxq),y[:,1]-maxq)
 
 
-def get_loss_parameters(neighboorhood, data, out):
+def get_loss_parameters(neighboorhood, data, out, edge_index_dict=None):
     ## Caching repetitive variables that remain the same in all batches (except last one when incomplete)
+
+    if edge_index_dict is None:
+        edge_index_dict = data.edge_index_dict
     if neighboorhood is None or len(neighboorhood[2]) != len(out.get("gen")):
+        nb_buses = len(data["bus"].x)
+        bus_to_line_list = list(zip(*edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
+        line_to_bus_list = list(zip(*edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
 
-        bus_to_line_list = list(zip(*data.edge_index_dict.get(('bus', 'to', 'line')).cpu().tolist()))
-        line_to_bus_list = list(zip(*data.edge_index_dict.get(('line', 'to', 'bus')).cpu().tolist()))
-
-        bus_to_gen_index, gen_index = data.edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
-        bus_to_ext_index, ext_index = data.edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
+        bus_to_gen_index, gen_index = edge_index_dict.get(('bus', 'to', 'gen')).cpu().tolist()
+        bus_to_ext_index, ext_index = edge_index_dict.get(('bus', 'to', 'ext_grid')).cpu().tolist()
 
         bus_to_bus_dict = [
             (start, end, l1) for
             (start, l1) in bus_to_line_list for (l2, end) in line_to_bus_list if (l1 == l2 and start != end)]
 
-        i, j = [a[0] for a in bus_to_bus_dict], [a[1] for a in bus_to_bus_dict]
+        ### WARNING: Double check why it can be higher for homogeneous
+        i, j = [a[0] for a in bus_to_bus_dict if a<nb_buses], [a[1] for a in bus_to_bus_dict  if a<nb_buses]
 
         bus_size = len(out.get("bus"))
         buses = torch.LongTensor(i)
@@ -67,10 +71,11 @@ def get_loss_parameters(neighboorhood, data, out):
         bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict, i, j, mask, mask_t = neighboorhood
 
     # line features are: 'std_type', 'length_km', 'r_ohm_per_km', 'x_ohm_per_km', 'c_nf_per_km','g_us_per_km'
-    line_features = data.x_dict.get("line")[:, :6]
+    line_features = data["line"].x[:, :6]
     # bus features are : 'vn_kv', 'in_service', 'min_vm_pu', 'max_vm_pu', 'p_mw', 'q_mvar'
-    bus_features = data.x_dict.get("bus")[:, -2:]
-    V_base_kv = data['bus'].x[i, 0]
+    #bus_features = data["bus"].x[:, 4:6]
+    bus_features = data["bus"].x[:, -2:]
+    V_base_kv = data["bus"].x[i, 0]
     S_base = data.sn_mva[0] if isinstance(data.sn_mva, torch.Tensor) and len(data.sn_mva)>1 else data.sn_mva
     #S_base = 1 # the active and reactive powers are already normalized
     Z_base = V_base_kv ** 2 / S_base
@@ -178,7 +183,7 @@ def get_variables(ground_truth, data, out,i,j, gen_index, ext_index):
     return vm_i, vm_j, va_i, va_j, gen_buses, ext_buses
 
 
-def power_imbalance_loss(data, out, neighboorhood=None, ground_truth=False, version="2"):
+def power_imbalance_loss(data, out, neighboorhood=None, ground_truth=False, version="2", edge_index_dict=None):
     """calculate injected power Pji
 
     Formula:
@@ -208,7 +213,7 @@ def power_imbalance_loss(data, out, neighboorhood=None, ground_truth=False, vers
         begin = time.time()
         ground_truth = int(os.environ.get("USE_GT_POWERIMBALANCE", ground_truth))
 
-        neighboorhood, S_base, mask, mask_t, bus_features, bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict, i, j, mask, mask_t, r, x, b = get_loss_parameters(neighboorhood, data, out)
+        neighboorhood, S_base, mask, mask_t, bus_features, bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict, i, j, mask, mask_t, r, x, b = get_loss_parameters(neighboorhood, data, out, edge_index_dict)
 
         vm_i, vm_j, va_i, va_j, gen_buses, ext_buses = get_variables(ground_truth, data, out,i,j, gen_index, ext_index)
 
@@ -307,11 +312,11 @@ def power_cost_loss(data, out, neighboorhood=None, ground_truth=False):
 
     neighboorhood, S_base, mask, mask_t, bus_features, bus_to_line_list, line_to_bus_list, bus_to_gen_index, gen_index, bus_to_ext_index, ext_index, bus_to_bus_dict, i, j, mask, mask_t, r, x, b = get_loss_parameters(neighboorhood, data, out)
 
-    gen_costs_p = data.x_dict.get("gen")[:, -6:-3]
-    ext_costs_p= data.x_dict.get("ext_grid")[:, -6:-3]
+    gen_costs_p = data["gen"].x[:, -6:-3] #20
+    ext_costs_p= data["ext_grid"].x[:, -6:-3] #15
 
-    gen_costs_q = data.x_dict.get("gen")[:, -3:]
-    ext_costs_q = data.x_dict.get("ext_grid")[:, -3:]
+    gen_costs_q = data["gen"].x[:, -3:]
+    ext_costs_q = data["ext_grid"].x[:, -3:]
 
     if ground_truth:
         gen_buses = data["gen"].y[gen_index, :]
